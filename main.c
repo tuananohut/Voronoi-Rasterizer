@@ -5,6 +5,7 @@
 #include <string.h>
 #include <errno.h>
 #include <time.h>
+#include <limits.h>
 
 #define WIDTH 1920
 #define HEIGHT 1080
@@ -46,6 +47,7 @@ typedef struct {
 } Point32;
 
 static Color32 image[HEIGHT][WIDTH];
+static int depth[HEIGHT][WIDTH]; 
 static Point seeds[SEEDS_COUNT];
 static Color32 palette[] = {
   CYBERPUNK_WILD_STRAWBERRY,
@@ -282,17 +284,21 @@ void render_point_gradient(void)
     }
 }
 
-void apply_next_seed_color(Color32 next_seed_color)
+void apply_next_seed(size_t seed_index)
 {
-  Point next_seed = color_to_point(next_seed_color); 
-  for (int y = 0; y < HEIGHT; ++y)
+  Point seed = seeds[seed_index];
+  Color32 color = palette[seed_index%palette_count];
+    for (int y = 0; y < HEIGHT; ++y)
     {
       for (int x = 0; x < WIDTH; ++x)
 	{
-	  Point curr_seed = color_to_point(image[y][x]);
-	  if(sqr_dist(next_seed.x, next_seed.y, x, y) < sqr_dist(curr_seed.x, curr_seed.y, x, y))
+	  int dx = x - seed.x;
+	  int dy = y - seed.y;
+	  int d = dx*dx + dy*dy;
+	  if (d < depth[y][x])
 	    {
-	      image[y][x] = next_seed_color;  
+	      depth[y][x] = d;
+	      image[y][x] = color; 
 	    }
 	}
     }
@@ -300,25 +306,105 @@ void apply_next_seed_color(Color32 next_seed_color)
 
 void render_voronoi_interesting(void)
 {
-  fill_image(point_to_color(seeds[0]));
-  for (size_t i = 1; i < SEEDS_COUNT; ++i)
+  for (int y = 0; y < HEIGHT; ++y)
     {
-      apply_next_seed_color(point_to_color(seeds[i]));
+      for (int x = 0; x < WIDTH; ++x)
+	{
+	  depth[y][x] = INT_MAX; 
+	}
     }
-  render_seed_marker();
+
+  for (size_t i = 0; i < SEEDS_COUNT; ++i)
+    {
+      apply_next_seed(i);
+    }
+
+  // render_seed_marker();
 }
 
-int main(void)
+char *render_modes[] =
+  {
+    "euclidean",
+    "manhattan",
+    "interesting"
+  };
+#define render_mode_count (sizeof(render_modes)/sizeof(render_modes[0]))
+
+char *save_modes[] =
+  {
+    "ppm",
+    "mp4"
+  };
+#define save_mode_count (sizeof(save_modes)/sizeof(save_modes[0]))
+
+int main(int argc, char *argv[]) 
 {
-  // 0xAABBGGRR
-  // RR GG BB AA
+  if (argc < 2)
+    {
+      printf("This is Voronoi Rasterizer. You have to write render and save mode to run it.\n");
+      printf("Render modes: \n");
+      for (size_t i = 0; i < render_mode_count; ++i)
+	{
+	  printf("%s\n", render_modes[i]);
+	}
+      printf("\nSave modes: \n");
+      for (size_t i = 0; i < save_mode_count; ++i)
+	{
+	  printf("%s\n", save_modes[i]);
+	}
+      return -1; 
+    }
+  
   srand(time(0));
   fill_image(BACKGROUND_COLOR);
   generate_random_seeds();
-  render_voronoi_interesting(); 
-  // render_seed_marker();
-  // render_point_gradient(); 
-  save_image_as_ppm(OUTPUT_FILE_PATH);
-  // save_image_as_mp4(OUTPUT_FILE_PATH);
+  
+  char *render_mode = argv[1];
+  char *save_mode = argv[2];
+
+  for (size_t i = 0; i < render_mode_count; ++i)
+    {
+      if (strcmp(render_mode, "euclidean") == 0)
+	{
+	  render_voronoi_euclidean();
+	}
+      else if (strcmp(render_mode, "manhattan") == 0)
+	{
+	  render_voronoi_manhattan();
+	}
+      else if (strcmp(render_mode, "interesting") == 0)
+	{
+	  render_voronoi_interesting();
+	}
+      else
+	{
+	  fprintf(stderr, "Unknown render mode: %s\n", render_mode);
+	}
+    }
+  
+  render_seed_marker();     
+
+  for (size_t i = 0; i < save_mode_count; ++i)
+    {
+      if (strcmp(save_mode, "ppm") == 0)
+	{
+	  save_image_as_ppm(OUTPUT_FILE_PATH);
+	}
+      else if (strcmp(save_mode, "mp4") == 0)
+	{
+	  save_image_as_mp4(OUTPUT_FILE_PATH);
+	  int ret = system("ffmpeg -framerate 30 -i output-%02d.ppm -c:v libx264 -pix_fmt yuv420p out.mp4");
+
+	  if (ret != 0)
+	    {
+	      fprintf(stderr, "FFmpeg command failed!\n");
+	    }
+	}
+      else
+	{
+	  fprintf(stderr, "Unknown save mode: %s\n", save_mode);
+	}
+    }
+
   return 0; 
 }
