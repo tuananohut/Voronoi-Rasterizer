@@ -362,48 +362,42 @@ int main(int argc, char *argv[])
   char *render_mode = argv[1];
   char *save_mode = argv[2];
 
-  for (size_t i = 0; i < render_mode_count; ++i)
+  if (strcmp(render_mode, "euclidean") == 0)
     {
-      if (strcmp(render_mode, "euclidean") == 0)
-	{
-	  render_voronoi_euclidean();
-	}
-      else if (strcmp(render_mode, "manhattan") == 0)
-	{
-	  render_voronoi_manhattan();
-	}
-      else if (strcmp(render_mode, "interesting") == 0)
-	{
-	  render_voronoi_interesting();
-	}
-      else
-	{
-	  fprintf(stderr, "Unknown render mode: %s\n", render_mode);
-	}
+      render_voronoi_euclidean();
+    }
+  else if (strcmp(render_mode, "manhattan") == 0)
+    {
+      render_voronoi_manhattan();
+    }
+  else if (strcmp(render_mode, "interesting") == 0)
+    {
+      render_voronoi_interesting();
+    }
+  else
+    {
+      fprintf(stderr, "Unknown render mode: %s\n", render_mode);
     }
   
   render_seed_marker();     
 
-  for (size_t i = 0; i < save_mode_count; ++i)
+  if (strcmp(save_mode, "ppm") == 0)
     {
-      if (strcmp(save_mode, "ppm") == 0)
-	{
-	  save_image_as_ppm(OUTPUT_FILE_PATH);
-	}
-      else if (strcmp(save_mode, "mp4") == 0)
-	{
-	  save_image_as_mp4(OUTPUT_FILE_PATH);
-	  int ret = system("ffmpeg -framerate 30 -i output-%02d.ppm -c:v libx264 -pix_fmt yuv420p out.mp4");
+      save_image_as_ppm(OUTPUT_FILE_PATH);
+    }
+  else if (strcmp(save_mode, "mp4") == 0)
+    {
+      save_image_as_mp4(OUTPUT_FILE_PATH);
+      int ret = system("ffmpeg -framerate 30 -i output-%02d.ppm -c:v libx264 -pix_fmt yuv420p out.mp4");
 
-	  if (ret != 0)
-	    {
-	      fprintf(stderr, "FFmpeg command failed!\n");
-	    }
-	}
-      else
+      if (ret != 0)
 	{
-	  fprintf(stderr, "Unknown save mode: %s\n", save_mode);
+	  fprintf(stderr, "FFmpeg command failed!\n");
 	}
+    }
+  else
+    {
+      fprintf(stderr, "Unknown save mode: %s\n", save_mode);
     }
 
   return 0; 

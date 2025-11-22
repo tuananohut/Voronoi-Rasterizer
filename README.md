@@ -31,7 +31,7 @@ You need a C compiler (GCC or Clang). For MP4 export, `ffmpeg` is required.
 ### Compilation
 You can use the provided build script:
 ```bash
-f./build.sh
+./build.sh
 ```
 
 or compile manually:
